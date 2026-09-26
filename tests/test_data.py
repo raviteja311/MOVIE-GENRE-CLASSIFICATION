@@ -1,4 +1,6 @@
-from movie_genre.data import load_data
+import pandas as pd
+
+from movie_genre.data import clean_training_data, load_data
 
 
 def write(path, lines):
@@ -25,3 +27,16 @@ def test_load_data_strips_fields_and_merges_labels(tmp_path):
     assert test_eval_data[["ID", "TITLE", "GENRE"]].to_dict("records") == [
         {"ID": 1, "TITLE": "Movie C (2002)", "GENRE": "horror"},
     ]
+
+
+def test_clean_training_data_drops_leaks_conflicts_and_duplicates():
+    train = pd.DataFrame({
+        "DESCRIPTION": ["seen in test", "kept once", "kept once", "label clash", "label clash", "unique"],
+        "GENRE": ["drama", "comedy", "comedy", "drama", "horror", "action"],
+    })
+    test = pd.DataFrame({"DESCRIPTION": ["seen in test", "other"]})
+
+    cleaned, removed = clean_training_data(train, test)
+
+    assert cleaned["DESCRIPTION"].tolist() == ["kept once", "unique"]
+    assert removed == {"shared_with_test": 1, "conflicting_labels": 2, "duplicates": 1}

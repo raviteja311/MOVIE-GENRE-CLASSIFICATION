@@ -1,6 +1,8 @@
 # 🎬 Movie Genre Classification
 
-Predict a movie's genre (27 classes) from its plot description using a scikit-learn text pipeline: NLTK text cleaning, TF-IDF over words and word pairs, and a linear classifier.
+[![tests](https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION/actions/workflows/tests.yml/badge.svg)](https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION/actions/workflows/tests.yml)
+
+Predict a movie's genre (27 classes) from its plot description and title using a scikit-learn pipeline: regex text cleaning, TF-IDF features, and a linear classifier.
 
 ## Problem
 
@@ -8,11 +10,14 @@ Given a short plot summary, predict which of 27 genres (drama, comedy, thriller,
 
 ## Approach
 
-1. **Cleaning** (`preprocessing.py`): lowercase, strip emails, tags, numbers and punctuation, remove stopwords, lemmatize. The text is cleaned once, in parallel, and reused by every model.
-2. **Features**: `TfidfVectorizer` with unigrams and bigrams, `sublinear_tf=True`, `min_df=2`, `max_df=0.9`, capped at 100,000 features.
-3. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC (`C=0.3`), with balanced class weights where supported.
-4. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
-5. **Export**: the selected model is refit on all training data and saved as a single pipeline that accepts raw plot text.
+1. **Data cleaning** (`data.py`): drop training rows whose description also appears in the test set (164), rows with conflicting labels for the same description (11), and exact duplicates (49).
+2. **Text cleaning** (`preprocessing.py`): lowercase, strip emails, tags, numbers, punctuation and single letters.
+3. **Features** (`model.py`):
+   * Description: word unigrams and bigrams, English stopwords removed, `sublinear_tf=True`, `min_df=2`, `max_df=0.9`, capped at 100,000 features.
+   * Title: character 2-4 grams (up to 50,000), which pick up the release year and the quoting used for TV episodes.
+4. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC, with balanced class weights where supported. The SVC's `C=0.5` was chosen by 5-fold cross-validation (`movie-genre-tune`).
+5. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
+6. **Export**: the selected model is refit on all cleaned training data and saved as a single pipeline that accepts raw text.
 
 ## Dataset
 
@@ -28,23 +33,34 @@ Held-out test set (54,200 movies):
 
 * Majority-class baseline: **25.11% accuracy**
 * Selected model: **Linear SVC**
-* Accuracy: **55.21%**
-* Weighted F1: **55.81%**
-* Macro F1: **37.47%**
-* Top-3 accuracy: **79.12%**
+* Accuracy: **59.07%**
+* Weighted F1: **58.86%**
+* Macro F1: **40.74%**
+* Top-3 accuracy: **81.45%**
 
 | Model | Val accuracy | Val weighted F1 | Test accuracy | Test weighted F1 | Test macro F1 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Linear SVC | 55.34% | 55.87% | 55.21% | 55.81% | 37.47% |
-| Logistic Regression | 50.39% | 52.24% | 50.43% | 52.45% | 37.43% |
-| Complement NB | 54.36% | 47.29% | 54.77% | 47.76% | 23.15% |
+| Linear SVC | 59.10% | 58.90% | 59.07% | 58.86% | 40.74% |
+| Logistic Regression | 54.02% | 55.10% | 53.99% | 55.09% | 39.22% |
+| Complement NB | 54.06% | 47.16% | 53.94% | 46.88% | 21.91% |
 
-Balanced class weights trade some overall accuracy for better recall on rare genres (higher macro F1). Removing them raises accuracy to about 60% but lowers macro F1 to about 32%.
+Without a title the selected model still reaches 58.84% accuracy, 57.43% weighted F1 and 38.16% macro F1 on the test set.
+
+Balanced class weights trade some overall accuracy for better recall on rare genres (higher macro F1).
+
+### Tried and not kept
+
+Each was compared on the validation split:
+
+* **NLTK stopwords and lemmatization**: slightly worse than plain regex cleaning (about 0.2 to 0.4 points on every metric) and much slower.
+* **Title as word tokens**: no gain; character n-grams worked better.
+* **Calibrated probabilities** (`CalibratedClassifierCV`): higher accuracy and top-3, but lower weighted and macro F1, because calibration undoes the balanced class weights.
 
 ## Project Structure
 
 ```
 MOVIE-GENRE-CLASSIFICATION/
+├── .github/workflows/tests.yml    # CI: pytest on Python 3.12 and 3.14
 ├── data/
 │   ├── README.md                  # file format and source
 │   └── raw/                       # train, test and solution files
@@ -54,11 +70,12 @@ MOVIE-GENRE-CLASSIFICATION/
 │   ├── metrics.json               # validation and test metrics, per-class report
 │   └── figures/                   # EDA plots and confusion matrix
 ├── src/movie_genre/
-│   ├── config.py                  # paths and constants
-│   ├── data.py                    # loading and merging the data files
+│   ├── config.py                  # paths, constants and tuned C
+│   ├── data.py                    # loading, cleaning and splitting
 │   ├── preprocessing.py           # text cleaning shared by training and inference
 │   ├── model.py                   # pipeline definition and top-k prediction
 │   ├── eda.py                     # exploratory analysis
+│   ├── tune.py                    # cross-validation for C
 │   ├── train.py                   # training, selection, evaluation and export
 │   ├── predict.py                 # command-line inference
 │   └── download_data.py           # restore the data files
@@ -84,16 +101,22 @@ Explore the data (prints summaries, saves plots to `reports/figures/`):
 movie-genre-eda
 ```
 
-Train, evaluate and export the model (about 4 minutes):
+Tune `C` with cross-validation (about 6 minutes; update `SVC_C` in `config.py` with the result):
+
+```bash
+movie-genre-tune
+```
+
+Train, evaluate and export the model (about 6 minutes):
 
 ```bash
 movie-genre-train
 ```
 
-Predict from the command line:
+Predict from the command line. The title is optional but improves accuracy:
 
 ```bash
-movie-genre-predict "A small-town detective investigates a string of unsettling disappearances." --top-k 3
+movie-genre-predict "A small-town detective investigates a string of unsettling disappearances." --title "Hollow Creek (2015)" --top-k 3
 ```
 
 Restore the data files from another location:
@@ -110,11 +133,6 @@ Each command is also available as a module, for example `python -m movie_genre.t
 pip install -r requirements-dev.txt
 pytest
 ```
-
-## Notes
-
-* `nltk` is pinned to 3.10.3. Version 3.10.1 ships an import guard that blocks imports whenever the virtual environment lives inside the working directory (the usual `.venv` layout).
-* 91 descriptions appear in both the training and test files, and 15 training descriptions carry conflicting labels.
 
 ## License
 

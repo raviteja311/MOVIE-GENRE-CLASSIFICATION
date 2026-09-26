@@ -11,7 +11,7 @@ from wordcloud import WordCloud
 
 from movie_genre.config import FIGURES_DIR
 from movie_genre.data import load_data
-from movie_genre.preprocessing import ensure_nltk_resources, preprocess_many
+from movie_genre.preprocessing import preprocess_text
 
 
 def save_plot(name):
@@ -24,7 +24,6 @@ def save_plot(name):
 
 def main() -> int:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    ensure_nltk_resources()
     train_data, test_eval_data = load_data()
 
     print("Shape of the training data :", train_data.shape)
@@ -69,7 +68,7 @@ def main() -> int:
     save_plot("description_length_by_genre.png")
 
     print("\nCleaning text for the word cloud...")
-    text = " ".join(preprocess_many(train_data["DESCRIPTION"].fillna("")))
+    text = " ".join(train_data["DESCRIPTION"].map(preprocess_text))
     wordcloud = WordCloud(width=1000, height=500, background_color="black", colormap="spring").generate(text)
     plt.figure(figsize=(15, 7))
     plt.imshow(wordcloud, interpolation="bilinear")

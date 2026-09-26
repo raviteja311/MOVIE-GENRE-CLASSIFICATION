@@ -6,30 +6,51 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 
+from movie_genre.preprocessing import preprocess_text
+
+FEATURE_COLUMNS = ["DESCRIPTION", "TITLE"]
+
 
 def build_pipeline(classifier):
-    # Inputs are already cleaned by preprocess_many, so no preprocessor here.
-    return Pipeline([
-        ("tfidf", TfidfVectorizer(
+    features = ColumnTransformer([
+        ("description", TfidfVectorizer(
+            preprocessor=preprocess_text,
             stop_words="english",
             ngram_range=(1, 2),
             max_features=100_000,
             min_df=2,
             max_df=0.9,
             sublinear_tf=True,
-        )),
-        ("clf", classifier),
+        ), "DESCRIPTION"),
+        # Character n-grams pick up the release year and TV-episode quoting in titles.
+        ("title", TfidfVectorizer(
+            analyzer="char_wb",
+            ngram_range=(2, 4),
+            max_features=50_000,
+            min_df=3,
+            sublinear_tf=True,
+        ), "TITLE"),
     ])
+    return Pipeline([("features", features), ("clf", classifier)])
 
 
-def predict_top_k(model, label_encoder, texts, k: int = 3):
+def to_frame(descriptions, titles=None):
+    """Build model input from plot texts and optional titles (missing titles become "")."""
+    descriptions = list(descriptions)
+    titles = [""] * len(descriptions) if titles is None else list(titles)
+    return pd.DataFrame({"DESCRIPTION": descriptions, "TITLE": titles})
+
+
+def predict_top_k(model, label_encoder, frame, k: int = 3):
     if hasattr(model, "predict_proba"):
-        scores = model.predict_proba(texts)
+        scores = model.predict_proba(frame)
     elif hasattr(model, "decision_function"):
-        scores = model.decision_function(texts)
+        scores = model.decision_function(frame)
     else:
         raise ValueError("Model does not expose probability or decision scores.")
 

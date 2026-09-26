@@ -6,8 +6,7 @@ import argparse
 from pathlib import Path
 
 from movie_genre.config import MODEL_PATH
-from movie_genre.model import load_artifact, predict_top_k
-from movie_genre.preprocessing import ensure_nltk_resources
+from movie_genre.model import load_artifact, predict_top_k, to_frame
 
 DEFAULT_ARTIFACT = MODEL_PATH
 
@@ -15,6 +14,7 @@ DEFAULT_ARTIFACT = MODEL_PATH
 def main() -> int:
     parser = argparse.ArgumentParser(prog="movie-genre-predict", description="Predict a movie genre from a plot string.")
     parser.add_argument("text", help="Movie plot or description to classify.")
+    parser.add_argument("--title", default="", help='Optional title with year, e.g. "Heat (1995)". Improves accuracy.')
     parser.add_argument("--artifact", type=Path, default=DEFAULT_ARTIFACT, help="Path to the saved joblib artifact.")
     parser.add_argument("--top-k", type=int, default=3, help="Number of genre guesses to print.")
     args = parser.parse_args()
@@ -24,10 +24,9 @@ def main() -> int:
     if not args.text.strip():
         parser.error("Text must not be empty.")
 
-    ensure_nltk_resources()
     model, label_encoder = load_artifact(args.artifact)
     top_k = max(1, min(args.top_k, len(label_encoder.classes_)))
-    top_labels = predict_top_k(model, label_encoder, [args.text], k=top_k)[0]
+    top_labels = predict_top_k(model, label_encoder, to_frame([args.text], [args.title]), k=top_k)[0]
 
     print(f"Top-1 prediction: {top_labels[0]}")
     print("Top-k predictions:")

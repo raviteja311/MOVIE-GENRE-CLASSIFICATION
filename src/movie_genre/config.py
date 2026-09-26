@@ -14,3 +14,8 @@ METRICS_PATH = REPORTS_DIR / "metrics.json"
 
 DATA_FILES = ["train_data.txt", "test_data.txt", "test_data_solution.txt"]
 RANDOM_STATE = 42
+VALIDATION_SIZE = 0.2
+
+# Chosen with `movie-genre-tune` (5-fold cross-validation on the training split).
+SVC_C = 0.5
+SVC_C_GRID = [0.25, 0.5, 1.0, 2.0, 4.0]
