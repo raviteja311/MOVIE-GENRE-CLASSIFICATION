@@ -1,100 +1,92 @@
-# 🎬 Movie Genre Classification using NLP
+# 🎬 Movie Genre Classification
 
-This project leverages Natural Language Processing (NLP) and Machine Learning techniques to automatically classify movies into their respective genres based on their plot summaries or descriptions. The core of the project lies within the accompanying Jupyter Notebook, which details the data exploration, text preprocessing, feature engineering, model training, and evaluation steps.
+Predict a movie's genre (27 classes) from its plot description using a scikit-learn text pipeline: NLTK text cleaning, TF-IDF over words and word pairs, and a linear classifier.
 
----
+## Problem
 
-## ✨ Features
+Given a short plot summary, predict which of 27 genres (drama, comedy, thriller, documentary, ...) the movie belongs to. The classes are very imbalanced: drama and documentary together cover about half of the data, while genres like war and news have fewer than 200 examples each.
 
-*   **Data Handling:** Loads movie datasets containing ID, Title, Genre, and Description.
-*   **Exploratory Data Analysis (EDA) 📊:**
-    *   Analyzes data structure and checks for missing values or duplicates.
-    *   Visualizes genre distribution using bar charts.
-    *   Investigates description length patterns with histograms.
-*   **Text Preprocessing ⚙️:**
-    *   Applies standard NLP cleaning techniques: lowercasing, removal of emails, mentions, hashtags, HTML tags, numbers, punctuation, and single characters.
-    *   Utilizes NLTK for:
-        *   Tokenization
-        *   Stopword removal
-        *   Lemmatization
-*   **Visualization:** Creates a WordCloud to highlight the most frequent terms in movie descriptions.
-*   **Feature Engineering:** Transforms cleaned text descriptions into numerical feature vectors using the **TF-IDF** (Term Frequency-Inverse Document Frequency) method, incorporating n-grams (1, 2).
-*   **Label Encoding:** Converts categorical genre labels into a numerical format suitable for ML models.
-*   **Model Training & Optimization 🧠:**
-    *   Splits the training data into training and validation sets.
-    *   Trains multiple classification models:
-        *   Logistic Regression (Optimized using GridSearchCV for hyperparameter tuning)
-        *   Multinomial Naive Bayes
-        *   Linear Support Vector Classifier (SVM)
-*   **Model Evaluation 📈:**
-    *   Assesses model performance on the validation set using detailed Classification Reports.
-    *   Visualizes model predictions with Confusion Matrices.
-    *   Identifies the best-performing model based on evaluation metrics (weighted F1-score).
-*   **Prediction 🚀:** Demonstrates how to use the best-trained model (SVM) to predict genres for new, unseen movie descriptions.
+## Approach
 
----
+1. **Cleaning** (`text_utils.py`): lowercase, strip emails, tags, numbers and punctuation, remove stopwords, lemmatize. The text is cleaned once, in parallel, and reused by every model.
+2. **Features**: `TfidfVectorizer` with unigrams and bigrams, `sublinear_tf=True`, `min_df=2`, `max_df=0.9`, capped at 100,000 features.
+3. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC (`C=0.3`), with balanced class weights where supported.
+4. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
+5. **Export**: the selected model is refit on all training data and saved as a single pipeline that accepts raw plot text.
 
-## 💾 Dataset
+## Dataset
 
-The project utilizes three primary datasets provided as text files:
+The repository expects three text files in the project root, delimited by `:::`:
 
-1.  **`train_data.txt`**: Training data including `ID`, `TITLE`, `GENRE`, and `DESCRIPTION`.
-2.  **`test_data.txt`**: Test data containing `ID`, `TITLE`, and `DESCRIPTION` (for prediction).
-3.  **`test_data_solution.txt`**: Ground truth `GENRE` labels corresponding to the test data.
+* `train_data.txt` - `ID ::: TITLE ::: GENRE ::: DESCRIPTION` (54,214 rows)
+* `test_data.txt` - `ID ::: TITLE ::: DESCRIPTION` (54,200 rows)
+* `test_data_solution.txt` - the same test rows with `GENRE`, used for held-out evaluation
 
-*Fields within these files are delimited by `:::`.*
+## Results
 
----
+Held-out test set (54,200 movies):
 
-## 📝 Workflow Overview
+* Majority-class baseline: **25.11% accuracy**
+* Selected model: **Linear SVC**
+* Accuracy: **55.21%**
+* Weighted F1: **55.81%**
+* Macro F1: **37.47%**
+* Top-3 accuracy: **79.12%**
 
-> 1.  **Library Imports:** Load necessary Python packages (`pandas`, `numpy`, `sklearn`, `nltk`, `matplotlib`, `seaborn`, `wordcloud`).
-> 2.  **Data Loading:** Read the datasets into pandas DataFrames.
-> 3.  **EDA:** Explore and visualize the data characteristics.
-> 4.  **Preprocessing:** Clean and normalize the movie descriptions using NLP techniques.
-> 5.  **Feature Engineering:** Create TF-IDF vectors from text and encode labels.
-> 6.  **Data Splitting:** Divide the training data for model training and validation.
-> 7.  **Model Training & Tuning:** Build and optimize Logistic Regression, Naive Bayes, and SVM models.
-> 8.  **Evaluation:** Compare model performance using classification metrics and confusion matrices.
-> 9.  **Prediction:** Apply the best model to make genre predictions on test samples.
+| Model | Val accuracy | Val weighted F1 | Test accuracy | Test weighted F1 | Test macro F1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Linear SVC | 55.34% | 55.87% | 55.21% | 55.81% | 37.47% |
+| Logistic Regression | 50.39% | 52.24% | 50.43% | 52.45% | 37.43% |
+| Complement NB | 54.36% | 47.29% | 54.77% | 47.76% | 23.15% |
 
----
+Balanced class weights trade some overall accuracy for better recall on rare genres (higher macro F1). Removing them raises accuracy to about 60% but lowers macro F1 to about 32%.
 
-## 🛠️ Installation & Setup
+## Usage
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository_url>
-    cd <repository_directory>
-    ```
-2.  **Install Dependencies:** Ensure you have the required Python libraries.
-    ```bash
-    pip install numpy pandas matplotlib seaborn scikit-learn nltk wordcloud jupyter
-    ```
-3.  **Download NLTK Resources:** Run the following in Python or the notebook:
-    ```python
-    import nltk
-    nltk.download('stopwords')
-    nltk.download('wordnet')
-    nltk.download('punkt')
-    # nltk.download('punkt_tab') # May also be needed
-    ```
-4.  **Data Files:** Place `train_data.txt`, `test_data.txt`, and `test_data_solution.txt` in the project directory or adjust the file paths within the notebook.
+Create an environment (Python 3.12+) and install dependencies:
 
----
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-## 📊 Evaluation Highlights
+Explore the data (prints summaries, saves plots to `artifacts/plots/`):
 
-Three models were evaluated on the validation set. The SVM model demonstrated the best performance based on the weighted average F1-score:
+```bash
+python eda.py
+```
 
-*   Logistic Regression (Optimized): ~0.54 F1-score
-*   Naive Bayes: ~0.43 F1-score
-*   **SVM: ~0.54 F1-score (Selected Model)**
+Train, evaluate and export the model (about 4 minutes):
 
-*(Note: Performance metrics might slightly differ based on specific data splits or library versions.)*
+```bash
+python evaluate_models.py
+```
 
----
+Predict from the command line:
 
-## 🚀 Sample Prediction
+```bash
+python predict.py "A small-town detective investigates a string of unsettling disappearances."
+```
 
-The notebook concludes by predicting genres for the first two samples from the test set using the trained SVM model:
+If you need to restore the data files from another location:
+
+```bash
+python download_data.py --source-dir <path-to-data>
+```
+
+## Project Files
+
+* `eda.py` - dataset summaries, genre distribution, description length and word cloud plots
+* `evaluate_models.py` - training, model selection, evaluation and export
+* `predict.py` - command-line inference entry point
+* `text_utils.py` - text cleaning shared by training and inference
+* `download_data.py` - helper for restoring the data files
+* `artifacts/movie_genre_classifier.joblib` - saved pipeline and label encoder
+* `artifacts/metrics.json` - validation and test metrics, plus the per-class test report
+* `artifacts/plots/` - EDA plots and the confusion matrix of the selected model
+
+## Notes
+
+* `nltk` is pinned to 3.10.3. Version 3.10.1 ships an import guard that blocks imports whenever the virtual environment lives inside the working directory (the usual `.venv` layout).
+* 91 descriptions appear in both the training and test files, and 15 training descriptions carry conflicting labels.

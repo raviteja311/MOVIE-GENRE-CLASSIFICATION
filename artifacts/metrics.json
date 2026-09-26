@@ -1,0 +1,227 @@
+{
+  "best_model_name": "Linear SVC",
+  "selection": "highest validation weighted F1",
+  "majority_class_baseline": 0.2511439114391144,
+  "top3_accuracy": 0.7912177121771218,
+  "metrics": [
+    {
+      "model": "Logistic Regression",
+      "split": "validation",
+      "accuracy": 0.50392,
+      "weighted_f1": 0.522409,
+      "macro_f1": 0.37693
+    },
+    {
+      "model": "Logistic Regression",
+      "split": "held-out test",
+      "accuracy": 0.504336,
+      "weighted_f1": 0.524491,
+      "macro_f1": 0.374265
+    },
+    {
+      "model": "Complement NB",
+      "split": "validation",
+      "accuracy": 0.543577,
+      "weighted_f1": 0.472871,
+      "macro_f1": 0.221439
+    },
+    {
+      "model": "Complement NB",
+      "split": "held-out test",
+      "accuracy": 0.547675,
+      "weighted_f1": 0.477644,
+      "macro_f1": 0.231483
+    },
+    {
+      "model": "Linear SVC",
+      "split": "validation",
+      "accuracy": 0.553445,
+      "weighted_f1": 0.558715,
+      "macro_f1": 0.376499
+    },
+    {
+      "model": "Linear SVC",
+      "split": "held-out test",
+      "accuracy": 0.552085,
+      "weighted_f1": 0.55814,
+      "macro_f1": 0.374738
+    }
+  ],
+  "best_model_test_report": {
+    "action": {
+      "precision": 0.33900928792569657,
+      "recall": 0.5,
+      "f1-score": 0.4040590405904059,
+      "support": 1314.0
+    },
+    "adult": {
+      "precision": 0.37247353224254093,
+      "recall": 0.6559322033898305,
+      "f1-score": 0.47513812154696133,
+      "support": 590.0
+    },
+    "adventure": {
+      "precision": 0.283704572098476,
+      "recall": 0.31225806451612903,
+      "f1-score": 0.2972972972972973,
+      "support": 775.0
+    },
+    "animation": {
+      "precision": 0.2178060413354531,
+      "recall": 0.2751004016064257,
+      "f1-score": 0.24312333629103816,
+      "support": 498.0
+    },
+    "biography": {
+      "precision": 0.03571428571428571,
+      "recall": 0.026515151515151516,
+      "f1-score": 0.030434782608695653,
+      "support": 264.0
+    },
+    "comedy": {
+      "precision": 0.6203433754454163,
+      "recall": 0.5143701316142896,
+      "f1-score": 0.5624082232011748,
+      "support": 7446.0
+    },
+    "crime": {
+      "precision": 0.16997518610421836,
+      "recall": 0.2712871287128713,
+      "f1-score": 0.20900076277650648,
+      "support": 505.0
+    },
+    "documentary": {
+      "precision": 0.7575943540963486,
+      "recall": 0.7541233964569334,
+      "f1-score": 0.7558548905556406,
+      "support": 13096.0
+    },
+    "drama": {
+      "precision": 0.689492439564673,
+      "recall": 0.5259330002938584,
+      "f1-score": 0.5967076474265472,
+      "support": 13612.0
+    },
+    "family": {
+      "precision": 0.21857410881801126,
+      "recall": 0.29757343550446996,
+      "f1-score": 0.25202812330989727,
+      "support": 783.0
+    },
+    "fantasy": {
+      "precision": 0.17096018735362997,
+      "recall": 0.2267080745341615,
+      "f1-score": 0.19492656875834447,
+      "support": 322.0
+    },
+    "game-show": {
+      "precision": 0.5590551181102362,
+      "recall": 0.7357512953367875,
+      "f1-score": 0.6353467561521253,
+      "support": 193.0
+    },
+    "history": {
+      "precision": 0.07692307692307693,
+      "recall": 0.07407407407407407,
+      "f1-score": 0.07547169811320754,
+      "support": 243.0
+    },
+    "horror": {
+      "precision": 0.5116572148708255,
+      "recall": 0.7368421052631579,
+      "f1-score": 0.6039419858683526,
+      "support": 2204.0
+    },
+    "music": {
+      "precision": 0.41484375,
+      "recall": 0.7264021887824897,
+      "f1-score": 0.5280954748881154,
+      "support": 731.0
+    },
+    "musical": {
+      "precision": 0.1912568306010929,
+      "recall": 0.2536231884057971,
+      "f1-score": 0.21806853582554517,
+      "support": 276.0
+    },
+    "mystery": {
+      "precision": 0.11714285714285715,
+      "recall": 0.1289308176100629,
+      "f1-score": 0.12275449101796407,
+      "support": 318.0
+    },
+    "news": {
+      "precision": 0.2737430167597765,
+      "recall": 0.27071823204419887,
+      "f1-score": 0.2722222222222222,
+      "support": 181.0
+    },
+    "reality-tv": {
+      "precision": 0.3242009132420091,
+      "recall": 0.4824462061155153,
+      "f1-score": 0.3878015475648612,
+      "support": 883.0
+    },
+    "romance": {
+      "precision": 0.18018787361229718,
+      "recall": 0.31398809523809523,
+      "f1-score": 0.2289744981009224,
+      "support": 672.0
+    },
+    "sci-fi": {
+      "precision": 0.3380952380952381,
+      "recall": 0.5495356037151703,
+      "f1-score": 0.4186320754716981,
+      "support": 646.0
+    },
+    "short": {
+      "precision": 0.515240328253224,
+      "recall": 0.346608832807571,
+      "f1-score": 0.4144271570014144,
+      "support": 5072.0
+    },
+    "sport": {
+      "precision": 0.3687580025608195,
+      "recall": 0.6682134570765661,
+      "f1-score": 0.4752475247524752,
+      "support": 431.0
+    },
+    "talk-show": {
+      "precision": 0.2745664739884393,
+      "recall": 0.4859335038363171,
+      "f1-score": 0.3508771929824561,
+      "support": 391.0
+    },
+    "thriller": {
+      "precision": 0.28162291169451076,
+      "recall": 0.2968553459119497,
+      "f1-score": 0.28903857930189836,
+      "support": 1590.0
+    },
+    "war": {
+      "precision": 0.23247232472324722,
+      "recall": 0.4772727272727273,
+      "f1-score": 0.31265508684863524,
+      "support": 132.0
+    },
+    "western": {
+      "precision": 0.6535541752933057,
+      "recall": 0.9176356589147286,
+      "f1-score": 0.7634018540910923,
+      "support": 1032.0
+    },
+    "accuracy": 0.5520848708487085,
+    "macro avg": {
+      "precision": 0.3403321287618409,
+      "recall": 0.4379493452055307,
+      "f1-score": 0.3747383509098331,
+      "support": 54200.0
+    },
+    "weighted avg": {
+      "precision": 0.5829580505637727,
+      "recall": 0.5520848708487085,
+      "f1-score": 0.5581397128891512,
+      "support": 54200.0
+    }
+  }
+}
