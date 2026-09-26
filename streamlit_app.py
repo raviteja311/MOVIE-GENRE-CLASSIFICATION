@@ -2,6 +2,7 @@
 
 import json
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -111,8 +112,18 @@ if submitted:
         with st.container(border=True):
             st.subheader(f"Predicted genre: {ranking.iloc[0]['genre']}", icon=":material/theaters:")
             if len(ranking) > 1:
-                st.bar_chart(ranking, x="genre", y="score", horizontal=True, sort="-score", x_label="Genre", y_label="Score")
+                # Dots rather than bars: SVM scores are often all negative, so bar length from zero would mislead.
+                chart = (
+                    alt.Chart(ranking)
+                    .mark_circle(size=160)
+                    .encode(
+                        x=alt.X("score:Q", title="Score", scale=alt.Scale(zero=False, nice=False, padding=20)),
+                        y=alt.Y("genre:N", title="Genre", sort="-x"),
+                        tooltip=["genre", alt.Tooltip("score:Q", format=".3f")],
+                    )
+                )
+                st.altair_chart(chart)
             if hasattr(model, "predict_proba"):
                 st.caption("Scores are predicted probabilities.")
             else:
-                st.caption("Scores are the SVM's decision values: higher means more likely. They are not probabilities.")
+                st.caption("Scores are the SVM's decision values: further right means more likely. They are not probabilities.")

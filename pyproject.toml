@@ -11,6 +11,7 @@ license = "MIT"
 authors = [{ name = "Jetti Raviteja" }]
 requires-python = ">=3.11"
 dependencies = [
+    "altair",
     "joblib",
     "matplotlib",
     "numpy",

@@ -4,6 +4,11 @@
 
 Predict a movie's genre (27 classes) from its plot description and title using a scikit-learn pipeline: regex text cleaning, TF-IDF features, and a linear classifier.
 
+<p align="center">
+  <img src="docs/images/streamlit_demo.png" alt="Streamlit demo predicting crime for a detective thriller plot, with the top five genres plotted by score" width="640">
+</p>
+<p align="center"><em>The Streamlit demo (<code>streamlit run streamlit_app.py</code>)</em></p>
+
 ## Problem
 
 Given a short plot summary, predict which of 27 genres (drama, comedy, thriller, documentary, ...) the movie belongs to. The classes are very imbalanced: drama and documentary together cover about half of the data, while genres like war and news have fewer than 200 examples each.
@@ -64,6 +69,7 @@ MOVIE-GENRE-CLASSIFICATION/
 ├── data/
 │   ├── README.md                  # file format and source
 │   └── raw/                       # train, test and solution files
+├── docs/images/                   # README screenshot
 ├── models/
 │   └── movie_genre_classifier.joblib
 ├── reports/
