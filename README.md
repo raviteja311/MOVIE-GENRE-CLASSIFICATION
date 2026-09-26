@@ -1,6 +1,6 @@
-# 🎬 Movie Genre Classification
+# Movie Genre Classification
 
-[![tests](https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION/actions/workflows/tests.yml/badge.svg)](https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION/actions/workflows/tests.yml)
+[![tests](https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION/actions/workflows/tests.yml/badge.svg)](https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION/actions/workflows/tests.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Predict a movie's genre (27 classes) from its plot description and title using a scikit-learn pipeline: regex text cleaning, TF-IDF features, and a linear classifier.
 
@@ -22,7 +22,7 @@ Given a short plot summary, predict which of 27 genres (drama, comedy, thriller,
    * Title: character 2-4 grams (up to 50,000), which pick up the release year and the quoting used for TV episodes.
 4. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC, with balanced class weights where supported. The SVC's `C=0.5` was chosen by 5-fold cross-validation (`movie-genre-tune`).
 5. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
-6. **Export**: the selected model is refit on all cleaned training data and saved as a single pipeline that accepts raw text.
+6. **Export**: the selected model is refit on all cleaned training data and saved as a single pipeline that accepts raw text. Reported metrics come from the 80% split model; the exported model scores slightly higher (59.43% accuracy, 59.35% weighted F1, 41.30% macro F1).
 
 ## Dataset
 
@@ -57,7 +57,7 @@ Balanced class weights trade some overall accuracy for better recall on rare gen
 
 Each was compared on the validation split:
 
-* **NLTK stopwords and lemmatization**: slightly worse than plain regex cleaning (about 0.2 to 0.4 points on every metric) and much slower.
+* **NLTK stopwords and lemmatization** (earlier versions; NLTK is no longer a dependency): no gain over plain regex cleaning and much slower.
 * **Title as word tokens**: no gain; character n-grams worked better.
 * **Calibrated probabilities** (`CalibratedClassifierCV`): higher accuracy and top-3, but lower weighted and macro F1, because calibration undoes the balanced class weights.
 
@@ -98,7 +98,7 @@ Create an environment (Python 3.11+) and install the package with pinned depende
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -146,9 +146,13 @@ Each command is also available as a module, for example `python -m movie_genre.t
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
+pytest                            # 10 tests
 ```
 
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Author
+
+**Jetti Raviteja** · [Portfolio](https://portfolio-website-drab-six-15.vercel.app) · [GitHub](https://github.com/raviteja311) · [LinkedIn](https://www.linkedin.com/in/jettiraviteja/)
