@@ -8,7 +8,7 @@ Given a short plot summary, predict which of 27 genres (drama, comedy, thriller,
 
 ## Approach
 
-1. **Cleaning** (`text_utils.py`): lowercase, strip emails, tags, numbers and punctuation, remove stopwords, lemmatize. The text is cleaned once, in parallel, and reused by every model.
+1. **Cleaning** (`preprocessing.py`): lowercase, strip emails, tags, numbers and punctuation, remove stopwords, lemmatize. The text is cleaned once, in parallel, and reused by every model.
 2. **Features**: `TfidfVectorizer` with unigrams and bigrams, `sublinear_tf=True`, `min_df=2`, `max_df=0.9`, capped at 100,000 features.
 3. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC (`C=0.3`), with balanced class weights where supported.
 4. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
@@ -16,11 +16,11 @@ Given a short plot summary, predict which of 27 genres (drama, comedy, thriller,
 
 ## Dataset
 
-The repository expects three text files in the project root, delimited by `:::`:
+Three `:::` delimited files live in `data/raw/` (see [data/README.md](data/README.md) for the format):
 
-* `train_data.txt` - `ID ::: TITLE ::: GENRE ::: DESCRIPTION` (54,214 rows)
-* `test_data.txt` - `ID ::: TITLE ::: DESCRIPTION` (54,200 rows)
-* `test_data_solution.txt` - the same test rows with `GENRE`, used for held-out evaluation
+* `train_data.txt` - 54,214 labelled movies
+* `test_data.txt` - 54,200 unlabelled movies
+* `test_data_solution.txt` - the same test movies with their `GENRE`, used for held-out evaluation
 
 ## Results
 
@@ -41,9 +41,36 @@ Held-out test set (54,200 movies):
 
 Balanced class weights trade some overall accuracy for better recall on rare genres (higher macro F1). Removing them raises accuracy to about 60% but lowers macro F1 to about 32%.
 
+## Project Structure
+
+```
+MOVIE-GENRE-CLASSIFICATION/
+├── data/
+│   ├── README.md                  # file format and source
+│   └── raw/                       # train, test and solution files
+├── models/
+│   └── movie_genre_classifier.joblib
+├── reports/
+│   ├── metrics.json               # validation and test metrics, per-class report
+│   └── figures/                   # EDA plots and confusion matrix
+├── src/movie_genre/
+│   ├── config.py                  # paths and constants
+│   ├── data.py                    # loading and merging the data files
+│   ├── preprocessing.py           # text cleaning shared by training and inference
+│   ├── model.py                   # pipeline definition and top-k prediction
+│   ├── eda.py                     # exploratory analysis
+│   ├── train.py                   # training, selection, evaluation and export
+│   ├── predict.py                 # command-line inference
+│   └── download_data.py           # restore the data files
+├── tests/                         # pytest suite
+├── pyproject.toml
+├── requirements.txt               # pinned runtime dependencies
+└── requirements-dev.txt           # adds pytest
+```
+
 ## Usage
 
-Create an environment (Python 3.12+) and install dependencies:
+Create an environment (Python 3.11+) and install the package with pinned dependencies:
 
 ```bash
 python -m venv .venv
@@ -51,42 +78,44 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Explore the data (prints summaries, saves plots to `artifacts/plots/`):
+Explore the data (prints summaries, saves plots to `reports/figures/`):
 
 ```bash
-python eda.py
+movie-genre-eda
 ```
 
 Train, evaluate and export the model (about 4 minutes):
 
 ```bash
-python evaluate_models.py
+movie-genre-train
 ```
 
 Predict from the command line:
 
 ```bash
-python predict.py "A small-town detective investigates a string of unsettling disappearances."
+movie-genre-predict "A small-town detective investigates a string of unsettling disappearances." --top-k 3
 ```
 
-If you need to restore the data files from another location:
+Restore the data files from another location:
 
 ```bash
-python download_data.py --source-dir <path-to-data>
+movie-genre-download --source-dir <path-to-data>
 ```
 
-## Project Files
+Each command is also available as a module, for example `python -m movie_genre.train`.
 
-* `eda.py` - dataset summaries, genre distribution, description length and word cloud plots
-* `evaluate_models.py` - training, model selection, evaluation and export
-* `predict.py` - command-line inference entry point
-* `text_utils.py` - text cleaning shared by training and inference
-* `download_data.py` - helper for restoring the data files
-* `artifacts/movie_genre_classifier.joblib` - saved pipeline and label encoder
-* `artifacts/metrics.json` - validation and test metrics, plus the per-class test report
-* `artifacts/plots/` - EDA plots and the confusion matrix of the selected model
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
 ## Notes
 
 * `nltk` is pinned to 3.10.3. Version 3.10.1 ships an import guard that blocks imports whenever the virtual environment lives inside the working directory (the usual `.venv` layout).
 * 91 descriptions appear in both the training and test files, and 15 training descriptions carry conflicting labels.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

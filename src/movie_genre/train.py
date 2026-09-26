@@ -1,10 +1,8 @@
-#!/usr/bin/env python
 """Train text classifiers, select on validation, and report held-out test metrics."""
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import joblib
 import matplotlib
@@ -14,53 +12,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import ComplementNB
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
 
-from predict import predict_top_k
-from text_utils import ensure_nltk_resources, preprocess_many, preprocess_text
-
-ROOT = Path(__file__).resolve().parent
-ARTIFACTS_DIR = ROOT / "artifacts"
-PLOTS_DIR = ARTIFACTS_DIR / "plots"
-
-
-def load_data(root: Path = ROOT):
-    columns = ["ID", "TITLE", "GENRE", "DESCRIPTION"]
-    train_data = pd.read_csv(root / "train_data.txt", sep=":::", names=columns, engine="python")
-    test_data = pd.read_csv(root / "test_data.txt", sep=":::", names=["ID", "TITLE", "DESCRIPTION"], engine="python")
-    test_solution = pd.read_csv(root / "test_data_solution.txt", sep=":::", names=columns, engine="python")
-
-    # The " ::: " separator leaves padding around every field.
-    for frame in (train_data, test_data, test_solution):
-        for column in frame.columns.drop("ID"):
-            frame[column] = frame[column].str.strip()
-    train_data["GENRE"] = train_data["GENRE"].str.lower()
-    test_solution["GENRE"] = test_solution["GENRE"].str.lower()
-
-    test_eval_data = test_data.merge(test_solution[["ID", "GENRE"]], on="ID", how="inner", validate="one_to_one")
-    return train_data, test_eval_data
-
-
-def build_pipeline(classifier):
-    # Inputs are already cleaned by preprocess_many, so no preprocessor here.
-    return Pipeline([
-        ("tfidf", TfidfVectorizer(
-            stop_words="english",
-            ngram_range=(1, 2),
-            max_features=100_000,
-            min_df=2,
-            max_df=0.9,
-            sublinear_tf=True,
-        )),
-        ("clf", classifier),
-    ])
+from movie_genre.config import FIGURES_DIR, METRICS_PATH, MODEL_PATH, RANDOM_STATE
+from movie_genre.data import load_data
+from movie_genre.model import build_pipeline, predict_top_k
+from movie_genre.preprocessing import ensure_nltk_resources, preprocess_many, preprocess_text
 
 
 def metric_block(y_true, y_pred):
@@ -85,8 +47,8 @@ def save_confusion_matrix(y_true, y_pred, class_names, title, path):
 
 
 def main() -> int:
-    ARTIFACTS_DIR.mkdir(exist_ok=True)
-    PLOTS_DIR.mkdir(exist_ok=True)
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     ensure_nltk_resources()
 
     train_data, test_eval_data = load_data()
@@ -103,14 +65,14 @@ def main() -> int:
         train_clean,
         y,
         test_size=0.2,
-        random_state=42,
+        random_state=RANDOM_STATE,
         stratify=y,
     )
 
     models = {
-        "Logistic Regression": build_pipeline(LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced")),
+        "Logistic Regression": build_pipeline(LogisticRegression(max_iter=1000, random_state=RANDOM_STATE, class_weight="balanced")),
         "Complement NB": build_pipeline(ComplementNB()),
-        "Linear SVC": build_pipeline(LinearSVC(C=0.3, random_state=42, max_iter=5000, class_weight="balanced")),
+        "Linear SVC": build_pipeline(LinearSVC(C=0.3, random_state=RANDOM_STATE, max_iter=5000, class_weight="balanced")),
     }
 
     metrics = []
@@ -135,7 +97,7 @@ def main() -> int:
     save_confusion_matrix(
         y_test, best_test_pred, class_names,
         f"Row-normalized confusion matrix: {best_model_name}",
-        PLOTS_DIR / "confusion_matrix.png",
+        FIGURES_DIR / "confusion_matrix.png",
     )
 
     top_3 = predict_top_k(best_model, label_encoder, X_test_text, k=min(3, len(class_names)))
@@ -154,10 +116,10 @@ def main() -> int:
     final_model.set_params(tfidf__preprocessor=preprocess_text)
     assert (raw_pred == clean_pred).all(), "Raw-text and cleaned-text predictions disagree."
 
-    artifact_path = ARTIFACTS_DIR / "movie_genre_classifier.joblib"
+    artifact_path = MODEL_PATH
     joblib.dump({"model": final_model, "label_encoder": label_encoder, "best_model_name": best_model_name}, artifact_path, compress=3)
 
-    metrics_path = ARTIFACTS_DIR / "metrics.json"
+    metrics_path = METRICS_PATH
     metrics_payload = {
         "best_model_name": best_model_name,
         "selection": "highest validation weighted F1",

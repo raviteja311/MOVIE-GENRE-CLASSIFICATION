@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-"""Exploratory data analysis: print dataset summaries and save plots to artifacts/plots."""
+"""Exploratory data analysis: print dataset summaries and save plots to reports/figures."""
 
 from __future__ import annotations
 
@@ -10,12 +9,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
 
-from evaluate_models import PLOTS_DIR, load_data
-from text_utils import ensure_nltk_resources, preprocess_many
+from movie_genre.config import FIGURES_DIR
+from movie_genre.data import load_data
+from movie_genre.preprocessing import ensure_nltk_resources, preprocess_many
 
 
 def save_plot(name):
-    path = PLOTS_DIR / name
+    path = FIGURES_DIR / name
     plt.tight_layout()
     plt.savefig(path, dpi=120)
     plt.close()
@@ -23,7 +23,7 @@ def save_plot(name):
 
 
 def main() -> int:
-    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     ensure_nltk_resources()
     train_data, test_eval_data = load_data()
 

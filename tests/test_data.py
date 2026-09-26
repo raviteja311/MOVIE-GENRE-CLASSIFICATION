@@ -1,0 +1,27 @@
+from movie_genre.data import load_data
+
+
+def write(path, lines):
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_load_data_strips_fields_and_merges_labels(tmp_path):
+    write(tmp_path / "train_data.txt", [
+        "1 ::: Movie A (2000) ::: Drama ::: A sad story.",
+        "2 ::: Movie B (2001) ::: comedy ::: A funny story.",
+    ])
+    write(tmp_path / "test_data.txt", [
+        "1 ::: Movie C (2002) ::: A scary story.",
+    ])
+    write(tmp_path / "test_data_solution.txt", [
+        "1 ::: Movie C (2002) ::: Horror ::: A scary story.",
+    ])
+
+    train_data, test_eval_data = load_data(tmp_path)
+
+    assert train_data["GENRE"].tolist() == ["drama", "comedy"]
+    assert train_data["TITLE"].iloc[0] == "Movie A (2000)"
+    assert train_data["DESCRIPTION"].iloc[0] == "A sad story."
+    assert test_eval_data[["ID", "TITLE", "GENRE"]].to_dict("records") == [
+        {"ID": 1, "TITLE": "Movie C (2002)", "GENRE": "horror"},
+    ]
