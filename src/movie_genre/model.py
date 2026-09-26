@@ -46,7 +46,8 @@ def to_frame(descriptions, titles=None):
     return pd.DataFrame({"DESCRIPTION": descriptions, "TITLE": titles})
 
 
-def predict_top_k(model, label_encoder, frame, k: int = 3):
+def genre_scores(model, frame):
+    """Return an (n_samples, n_genres) array of probabilities or decision scores."""
     if hasattr(model, "predict_proba"):
         scores = model.predict_proba(frame)
     elif hasattr(model, "decision_function"):
@@ -57,7 +58,11 @@ def predict_top_k(model, label_encoder, frame, k: int = 3):
     scores = np.asarray(scores)
     if scores.ndim == 1:
         scores = scores.reshape(-1, 1)
+    return scores
 
+
+def predict_top_k(model, label_encoder, frame, k: int = 3):
+    scores = genre_scores(model, frame)
     top_indices = np.argsort(scores, axis=1)[:, -k:][:, ::-1]
     return label_encoder.inverse_transform(top_indices.ravel()).reshape(top_indices.shape)
 

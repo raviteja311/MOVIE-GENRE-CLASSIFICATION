@@ -79,7 +79,8 @@ MOVIE-GENRE-CLASSIFICATION/
 │   ├── train.py                   # training, selection, evaluation and export
 │   ├── predict.py                 # command-line inference
 │   └── download_data.py           # restore the data files
-├── tests/                         # pytest suite
+├── tests/                         # pytest suite, including headless app tests
+├── streamlit_app.py               # web demo
 ├── pyproject.toml
 ├── requirements.txt               # pinned runtime dependencies
 └── requirements-dev.txt           # adds pytest
@@ -118,6 +119,14 @@ Predict from the command line. The title is optional but improves accuracy:
 ```bash
 movie-genre-predict "A small-town detective investigates a string of unsettling disappearances." --title "Hollow Creek (2015)" --top-k 3
 ```
+
+Launch the web demo (opens at http://localhost:8501):
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The demo takes a plot description and optional title, shows the top 1, 3 or 5 genres with their scores, and includes one-click examples.
 
 Restore the data files from another location:
 

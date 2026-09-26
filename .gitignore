@@ -11,3 +11,7 @@ dist/
 # Tooling
 .pytest_cache/
 .ipynb_checkpoints/
+
+# Local tooling and secrets
+.claude/
+.streamlit/secrets.toml
