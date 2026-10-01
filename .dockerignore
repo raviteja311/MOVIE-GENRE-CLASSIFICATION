@@ -1,0 +1,15 @@
+# Only the app, the package, the model and its metrics go into the image.
+.git
+.github
+.claude
+.venv*
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/*.egg-info
+data
+docs
+tests
+reports/figures
+Dockerfile
+.dockerignore

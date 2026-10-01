@@ -10,6 +10,9 @@ from movie_genre.config import METRICS_PATH, MODEL_PATH
 from movie_genre.model import genre_scores, load_artifact, to_frame
 
 REPO_URL = "https://github.com/raviteja311/MOVIE-GENRE-CLASSIFICATION"
+# Input limits: 99.9% of training plots are under 4,200 characters and the longest title has 215.
+MAX_PLOT_CHARS = 5000
+MAX_TITLE_CHARS = 250
 
 EXAMPLES = {
     "Space mystery": (
@@ -44,11 +47,8 @@ def load_model():
 def load_test_metrics():
     if not METRICS_PATH.exists():
         return None
-    payload = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
-    for row in payload["metrics"]:
-        if row["model"] == payload["best_model_name"] and row["split"] == "held-out test":
-            return {**row, "top3_accuracy": payload["top3_accuracy"]}
-    return None
+    # Scores of the shipped model (refit on all cleaned training rows) on the held-out test set.
+    return json.loads(METRICS_PATH.read_text(encoding="utf-8")).get("shipped_model", {}).get("test")
 
 
 def apply_example():
@@ -85,11 +85,13 @@ with st.form("predict"):
         "Plot description",
         key="plot",
         height=140,
+        max_chars=MAX_PLOT_CHARS,
         placeholder="A small-town detective investigates a string of unsettling disappearances.",
     )
     st.text_input(
         "Title (optional)",
         key="title",
+        max_chars=MAX_TITLE_CHARS,
         placeholder="Hollow Creek (2015)",
         help="Including the release year in brackets improves accuracy.",
     )

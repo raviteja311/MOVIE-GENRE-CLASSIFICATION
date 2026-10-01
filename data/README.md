@@ -16,4 +16,6 @@ To restore the files from another location:
 movie-genre-download --source-dir <path-to-data>
 ```
 
+Copies and downloads are checked against the SHA-256 checksums in `src/movie_genre/config.py` (`DATA_SHA256`), computed after converting CRLF line endings to LF. Check the files in place with `movie-genre-download --verify-only`.
+
 Source: ftp://ftp.fu-berlin.de/pub/misc/movies/database/

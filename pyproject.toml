@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "ruff"]
 
 [project.scripts]
 movie-genre-eda = "movie_genre.eda:main"
@@ -37,3 +37,14 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    # joblib 1.5.3 sets array.shape when loading the model, which NumPy 2.5 deprecates. Library code only.
+    "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning:joblib.*",
+]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

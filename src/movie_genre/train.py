@@ -22,6 +22,9 @@ from movie_genre.config import FIGURES_DIR, METRICS_PATH, MODEL_PATH, RANDOM_STA
 from movie_genre.data import clean_training_data, load_data, train_validation_split
 from movie_genre.model import FEATURE_COLUMNS, build_pipeline, predict_top_k
 
+SELECTION_FIT = "train split (80%)"
+SHIPPED_FIT = "all cleaned rows (shipped)"
+
 
 def metric_block(y_true, y_pred):
     report = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
@@ -30,6 +33,11 @@ def metric_block(y_true, y_pred):
         "weighted_f1": report["weighted avg"]["f1-score"],
         "macro_f1": report["macro avg"]["f1-score"],
     }
+
+
+def top3_accuracy(model, label_encoder, X, y):
+    top_3 = predict_top_k(model, label_encoder, X, k=min(3, len(label_encoder.classes_)))
+    return float(np.mean([true in row for true, row in zip(label_encoder.inverse_transform(y), top_3, strict=True)]))
 
 
 def save_confusion_matrix(y_true, y_pred, class_names, title, path):
@@ -67,69 +75,82 @@ def main() -> int:
     }
 
     metrics = []
-    test_predictions = {}
     for name, model in models.items():
         print(f"Training {name}...")
         model.fit(X_train, y_train)
-        test_predictions[name] = model.predict(X_test)
-        metrics.append({"model": name, "split": "validation", **metric_block(y_val, model.predict(X_val))})
-        metrics.append({"model": name, "split": "held-out test", **metric_block(y_test, test_predictions[name])})
+        metrics.append({"model": name, "fit": SELECTION_FIT, "split": "validation", **metric_block(y_val, model.predict(X_val))})
+        metrics.append({"model": name, "fit": SELECTION_FIT, "split": "held-out test", **metric_block(y_test, model.predict(X_test))})
 
     # Select on validation only; the test set is scored but never used to choose.
     metrics_df = pd.DataFrame(metrics)
     best_row = metrics_df[metrics_df["split"] == "validation"].sort_values("weighted_f1", ascending=False).iloc[0]
     best_model_name = best_row["model"]
-    best_model = models[best_model_name]
-    best_test_pred = test_predictions[best_model_name]
-
+    selection_top3 = top3_accuracy(models[best_model_name], label_encoder, X_test, y_test)
     # Predictions without a title, as happens when predict is called with only a plot.
-    no_title_pred = best_model.predict(X_test.assign(TITLE=""))
-    metrics_df = pd.concat([metrics_df, pd.DataFrame([
-        {"model": best_model_name, "split": "held-out test (no title)", **metric_block(y_test, no_title_pred)},
-    ])], ignore_index=True)
+    X_test_no_title = X_test.assign(TITLE="")
+    selection_no_title = metric_block(y_test, models[best_model_name].predict(X_test_no_title))
 
-    class_names = label_encoder.classes_
-    print(f"\nHeld-out test classification report ({best_model_name}):\n")
-    print(classification_report(y_test, best_test_pred, target_names=class_names, zero_division=0))
-    save_confusion_matrix(
-        y_test, best_test_pred, class_names,
-        f"Row-normalized confusion matrix: {best_model_name}",
-        FIGURES_DIR / "confusion_matrix.png",
-    )
-
-    top_3 = predict_top_k(best_model, label_encoder, X_test, k=min(3, len(class_names)))
-    top3_accuracy = float(np.mean([true in row for true, row in zip(label_encoder.inverse_transform(y_test), top_3)]))
-    baseline = float(pd.Series(y_test).value_counts(normalize=True).max())
-
-    final_model = best_model
+    # Refit the selected pipeline on every cleaned row; this is the model that ships, so it is the one reported.
+    print(f"Refitting {best_model_name} on all {len(X)} cleaned training rows...")
+    final_model = models[best_model_name]
     final_model.fit(X, y)
     artifact_path = MODEL_PATH
     joblib.dump({"model": final_model, "label_encoder": label_encoder, "best_model_name": best_model_name}, artifact_path, compress=3)
 
+    shipped_test_pred = final_model.predict(X_test)
+    shipped_test = {**metric_block(y_test, shipped_test_pred), "top3_accuracy": top3_accuracy(final_model, label_encoder, X_test, y_test)}
+    shipped_no_title = metric_block(y_test, final_model.predict(X_test_no_title))
+    metrics_df = pd.concat([metrics_df, pd.DataFrame([
+        {"model": best_model_name, "fit": SELECTION_FIT, "split": "held-out test (no title)", **selection_no_title},
+        {"model": best_model_name, "fit": SHIPPED_FIT, "split": "held-out test", **metric_block(y_test, shipped_test_pred)},
+        {"model": best_model_name, "fit": SHIPPED_FIT, "split": "held-out test (no title)", **shipped_no_title},
+    ])], ignore_index=True)
+
+    class_names = label_encoder.classes_
+    print(f"\nHeld-out test classification report ({best_model_name}, shipped model):\n")
+    print(classification_report(y_test, shipped_test_pred, target_names=class_names, zero_division=0))
+    save_confusion_matrix(
+        y_test, shipped_test_pred, class_names,
+        f"Row-normalized confusion matrix: {best_model_name}",
+        FIGURES_DIR / "confusion_matrix.png",
+    )
+    baseline = float(pd.Series(y_test).value_counts(normalize=True).max())
+
     metrics_path = METRICS_PATH
     metrics_payload = {
         "best_model_name": best_model_name,
-        "selection": "highest validation weighted F1",
+        "selection": "highest validation weighted F1 (models fit on the 80% train split)",
         "training_rows_removed": rows_removed,
         "majority_class_baseline": baseline,
-        "top3_accuracy": top3_accuracy,
+        "shipped_model": {
+            "fit": SHIPPED_FIT,
+            "training_rows": len(X),
+            "test": shipped_test,
+            "test_no_title": shipped_no_title,
+        },
+        "selection_model": {
+            "fit": SELECTION_FIT,
+            "training_rows": len(X_train),
+            "test_top3_accuracy": selection_top3,
+        },
         "metrics": metrics_df.round(6).to_dict(orient="records"),
-        "best_model_test_report": classification_report(
-            y_test, best_test_pred, target_names=class_names, output_dict=True, zero_division=0,
+        "shipped_model_test_report": classification_report(
+            y_test, shipped_test_pred, target_names=class_names, output_dict=True, zero_division=0,
         ),
     }
     metrics_path.write_text(json.dumps(metrics_payload, indent=2), encoding="utf-8")
 
     sample_rows = test_eval_data.head(2)
     sample_top_3 = predict_top_k(final_model, label_encoder, sample_rows[FEATURE_COLUMNS], k=3)
-    print("Sample predictions (final model):")
-    for (_, row), labels in zip(sample_rows.iterrows(), sample_top_3):
+    print("Sample predictions (shipped model):")
+    for (_, row), labels in zip(sample_rows.iterrows(), sample_top_3, strict=True):
         print(f"- {row['TITLE']}: actual={row['GENRE']}, top-3={list(labels)}")
 
     print()
-    print(metrics_df.sort_values(["split", "weighted_f1"], ascending=[True, False]).to_string(index=False))
+    print(metrics_df.sort_values(["fit", "split", "weighted_f1"], ascending=[True, True, False]).to_string(index=False))
     print(f"\nBEST_MODEL {best_model_name} (selected on validation weighted F1)")
-    print(f"TOP3_ACCURACY {top3_accuracy:.6f}")
+    print(f"SHIPPED_TEST_ACCURACY {shipped_test['accuracy']:.6f}")
+    print(f"SHIPPED_TOP3_ACCURACY {shipped_test['top3_accuracy']:.6f}")
     print(f"BASELINE_TEST {baseline:.6f}")
     print(f"ARTIFACT {artifact_path}")
     print(f"METRICS {metrics_path}")
