@@ -148,6 +148,20 @@ Each call loads the model, which takes a few seconds, so classify many plots in 
 movie-genre-predict --file plots.csv --top-k 3 > predictions.csv
 ```
 
+How the file is read:
+
+* A file ending in `.csv` is parsed as CSV; any other extension is read as plain text, one description per line.
+* CSV headers are matched case-insensitively after trimming spaces, so `Description` and `Title` work. A CSV without a `description` column is rejected.
+* Blank lines and rows with an empty description are skipped. The `row` column numbers the descriptions that were classified, so it can differ from line numbers in the input file.
+
+For a `plots.csv` with the header `Title,Description` and three rows, where the second row has no description:
+
+```text
+row,title,genre_1,genre_2,genre_3
+1,Deep Signal (2019),sci-fi,adventure,short
+2,,documentary,comedy,short
+```
+
 Launch the web demo (opens at http://localhost:8501):
 
 ```bash
