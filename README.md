@@ -197,6 +197,26 @@ Command reference (every command also accepts `--help`):
 
 Each command is also available as a module, for example `python -m movie_genre.train`.
 
+### Use from Python
+
+The saved artifact is a joblib dictionary with three keys: `model` (the full scikit-learn pipeline, which accepts raw text), `label_encoder` (maps class indices to the 27 genre names) and `best_model_name` (`"Linear SVC"`). The helpers in `movie_genre.model` wrap it:
+
+```python
+from movie_genre.config import MODEL_PATH
+from movie_genre.model import load_artifact, predict_top_k, to_frame
+
+model, label_encoder = load_artifact(MODEL_PATH)
+frame = to_frame(
+    ["A weary detective hunts a serial killer who leaves riddles at every crime scene in a rain-soaked city."],
+    ["Riddle Man (1997)"],  # optional; omit the titles argument to use empty titles
+)
+print(predict_top_k(model, label_encoder, frame, k=3)[0].tolist())  # ['crime', 'thriller', 'action']
+```
+
+`genre_scores(model, frame)` returns the raw score matrix (one column per genre, in `label_encoder.classes_` order). For the shipped Linear SVC these are decision values, not probabilities.
+
+The project has no REST API. Inference is available through the CLI, the Python helpers above and the Streamlit demo; the only HTTP route is Streamlit's built-in `/_stcore/health`, used by the Docker health check.
+
 ## Deployment
 
 ### Docker
