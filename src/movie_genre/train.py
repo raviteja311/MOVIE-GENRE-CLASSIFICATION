@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 
 import joblib
@@ -52,7 +53,12 @@ def save_confusion_matrix(y_true, y_pred, class_names, title, path):
     plt.close()
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    argparse.ArgumentParser(
+        prog="movie-genre-train",
+        description=__doc__,
+        epilog="Overwrites models/movie_genre_classifier.joblib, reports/metrics.json and reports/figures/confusion_matrix.png.",
+    ).parse_args(argv)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 

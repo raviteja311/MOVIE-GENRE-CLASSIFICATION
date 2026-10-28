@@ -182,10 +182,10 @@ The repository is laid out for Community Cloud: `streamlit_app.py` at the root, 
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-pytest                            # 18 tests
+pytest                            # 20 tests
 ```
 
-The suite has 18 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums and the `--file` CLI, headless Streamlit tests, and a minimum-quality regression test. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing. CI runs `ruff check` and then `pytest` on Python 3.12 and 3.14.
+The suite has 20 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums, the `--file` CLI and argument parsing for `movie-genre-eda` and `movie-genre-train`, headless Streamlit tests, and a minimum-quality regression test. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing. CI runs `ruff check` and then `pytest` on Python 3.12 and 3.14.
 
 ## License
 

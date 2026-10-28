@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -22,7 +24,8 @@ def save_plot(name):
     print(f"Saved {path}")
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    argparse.ArgumentParser(prog="movie-genre-eda", description=__doc__).parse_args(argv)
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     train_data, test_eval_data = load_data()
 
