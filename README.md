@@ -107,19 +107,20 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Explore the data (prints summaries, saves plots to `reports/figures/`):
+Explore the data. This prints shapes, column summaries, missing values, duplicate counts and the number of descriptions shared between train and test, and saves `genre_distribution.png`, `description_length.png`, `description_length_by_genre.png` and `wordcloud.png` to `reports/figures/`:
 
 ```bash
 movie-genre-eda
 ```
 
-Tune `C` with cross-validation (about 6 minutes). The best value is written to `config/tuning.json`, which `movie-genre-train` reads; without that file `C` defaults to 0.5. Pass `--no-save` to only print the result:
+Tune `C` with cross-validation (about 6 minutes). The best value is written to `config/tuning.json`, which `movie-genre-train` reads; without that file `C` defaults to 0.5. Pass `--no-save` to only print the result. `--folds` (default 5), `--grid` (default `0.25 0.5 1.0 2.0 4.0`) and `--output` (default `config/tuning.json`) change the search:
 
 ```bash
 movie-genre-tune
+movie-genre-tune --folds 3 --grid 0.5 1 --no-save
 ```
 
-Train, select, refit, evaluate and export the model (about 6 minutes):
+Train, select, refit, evaluate and export the model (about 6 minutes). This overwrites `models/movie_genre_classifier.joblib`, `reports/metrics.json` and `reports/figures/confusion_matrix.png`, and prints the rows removed during cleaning, a per-class report and a metrics table:
 
 ```bash
 movie-genre-train
@@ -130,6 +131,16 @@ Predict from the command line. The title is optional but improves accuracy:
 ```bash
 movie-genre-predict "A small-town detective investigates a string of unsettling disappearances." --title "Hollow Creek (2015)" --top-k 3
 ```
+
+```text
+Top-1 prediction: thriller
+Top-k predictions:
+1. thriller
+2. horror
+3. fantasy
+```
+
+`--top-k` defaults to 3 and is clamped between 1 and the number of genres. `--artifact` loads a model other than `models/movie_genre_classifier.joblib`.
 
 Each call loads the model, which takes a few seconds, so classify many plots in one run with `--file`. It accepts a text file with one description per line, or a CSV with a `description` column and an optional `title` column, and prints CSV (`row,title,genre_1,...`) to stdout:
 
@@ -145,12 +156,23 @@ streamlit run streamlit_app.py
 
 The demo takes a plot description (up to 5,000 characters) and optional title (up to 250), shows the top 1, 3 or 5 genres with their scores, and includes one-click examples.
 
-Restore the data files from another location. Each file is checked against a SHA-256 checksum stored in `config.py` (computed with LF line endings, so a Windows checkout matches too):
+Restore the data files from a local directory or a URL. Each file is checked against a SHA-256 checksum stored in `config.py` (computed with LF line endings, so a Windows checkout matches too). With `--base-url`, each file is downloaded to a `.part` file and only moved into place once its checksum matches. `--output-dir` changes the destination (default `data/raw`), and `--skip-verify` disables the checksum check for a different dataset:
 
 ```bash
 movie-genre-download --source-dir <path-to-data>
+movie-genre-download --base-url <url-of-folder-with-the-three-files>
 movie-genre-download --verify-only
 ```
+
+Command reference (every command also accepts `--help`):
+
+| Command | Options (defaults) |
+| --- | --- |
+| `movie-genre-eda` | none |
+| `movie-genre-tune` | `--folds` (5), `--grid` (0.25 0.5 1.0 2.0 4.0), `--output` (`config/tuning.json`), `--no-save` |
+| `movie-genre-train` | none |
+| `movie-genre-predict` | `TEXT` or `--file`, `--title` (empty), `--top-k` (3), `--artifact` (`models/movie_genre_classifier.joblib`) |
+| `movie-genre-download` | `--source-dir`, `--base-url`, `--output-dir` (`data/raw`), `--verify-only`, `--skip-verify` |
 
 Each command is also available as a module, for example `python -m movie_genre.train`.
 
