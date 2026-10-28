@@ -248,10 +248,10 @@ The repository is laid out for Community Cloud: `streamlit_app.py` at the root, 
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-pytest                            # 20 tests
+pytest                            # 25 tests
 ```
 
-The suite has 20 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums, the `--file` CLI and argument parsing for `movie-genre-eda` and `movie-genre-train`, headless Streamlit tests, and a minimum-quality regression test. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing.
+The suite has 25 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums, the `--file` CLI and argument parsing for `movie-genre-eda` and `movie-genre-train`, headless Streamlit tests, a minimum-quality regression test, and README consistency checks. The README checks (`tests/test_readme.py`) fail if any command-line option is missing from this file, if the metrics quoted here differ from `reports/metrics.json`, if the tuned `C` differs from `config/tuning.json`, if the stated test count is wrong, or if a relative link points to a missing file. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing.
 
 CI (`.github/workflows/tests.yml`) runs on every push to `main` and every pull request as two independent jobs: `lint` installs only ruff and runs `ruff check` on Python 3.14, and `pytest` installs `requirements-dev.txt` and runs the suite on Python 3.12 and 3.14 (`fail-fast: false`, so one version failing does not cancel the other).
 
