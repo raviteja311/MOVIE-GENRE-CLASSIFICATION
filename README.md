@@ -102,13 +102,17 @@ MOVIE-GENRE-CLASSIFICATION/
 
 ## Usage
 
-Create an environment (Python 3.11+) and install the package with pinned dependencies:
+Create an environment and install the package with pinned dependencies. `pyproject.toml` requires Python 3.11 or newer; CI tests 3.12 and 3.14.
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+`requirements.txt` ends with `-e .`, which installs the package in editable mode. Keep it that way: `config.py` finds `data/`, `models/`, `reports/` and `config/` relative to the source tree (`Path(__file__).parents[2]`), so a regular `pip install .` would look for them inside `site-packages` and fail to find the model and data.
+
+The trained model and its metrics are committed, so `movie-genre-predict` and the web demo work straight after installation.
 
 Explore the data. This prints shapes, column summaries, missing values, duplicate counts and the number of descriptions shared between train and test, and saves `genre_distribution.png`, `description_length.png`, `description_length_by_genre.png` and `wordcloud.png` to `reports/figures/`:
 
