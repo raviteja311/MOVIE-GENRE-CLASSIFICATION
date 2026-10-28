@@ -83,21 +83,24 @@ MOVIE-GENRE-CLASSIFICATION/
 │   ├── metrics.json               # shipped-model and selection metrics, per-class report
 │   └── figures/                   # EDA plots and confusion matrix
 ├── src/movie_genre/
+│   ├── __init__.py                # package version (0.1.0)
 │   ├── config.py                  # paths, constants, data checksums, tuned C loader
 │   ├── data.py                    # loading, cleaning and splitting
 │   ├── preprocessing.py           # text cleaning shared by training and inference
-│   ├── model.py                   # pipeline definition and top-k prediction
+│   ├── model.py                   # pipeline definition, top-k prediction, artifact loading
 │   ├── eda.py                     # exploratory analysis
 │   ├── tune.py                    # cross-validation for C
 │   ├── train.py                   # training, selection, evaluation and export
 │   ├── predict.py                 # command-line inference, single plot or --file batch
 │   └── download_data.py           # restore and SHA-256 verify the data files
-├── tests/                         # pytest suite, including headless app tests
+├── tests/                         # pytest suite; conftest.py builds a tiny model for fast unit tests
 ├── streamlit_app.py               # web demo
 ├── Dockerfile                     # container for the web demo
+├── .dockerignore                  # keeps data, tests, docs and figures out of the image
 ├── pyproject.toml                 # package, pytest and ruff settings
 ├── requirements.txt               # pinned runtime dependencies
-└── requirements-dev.txt           # adds pytest and ruff
+├── requirements-dev.txt           # adds pytest and ruff
+└── LICENSE                        # MIT
 ```
 
 ## Usage
@@ -175,7 +178,7 @@ Launch the web demo (opens at http://localhost:8501):
 streamlit run streamlit_app.py
 ```
 
-The demo takes a plot description (up to 5,000 characters) and optional title (up to 250), shows the top 1, 3 or 5 genres with their scores, and includes one-click examples.
+The demo takes a plot description (up to 5,000 characters) and optional title (up to 250), shows the top 1, 3 or 5 genres with their scores, and includes five one-click examples (Space mystery, Game show, Detective thriller, Nature documentary, Romantic comedy). Above the form it shows the shipped model's test accuracy, weighted F1 and top-3 accuracy, read from `reports/metrics.json`; the cards are hidden if that file is missing, and the app shows an error and stops if the model is missing. Scores are drawn as dots rather than bars because the SVM's decision values are often all negative, and a caption states that they are not probabilities. Inputs sit in a form, so prediction runs only when **Predict genre** is pressed, and the model is loaded once and cached.
 
 Restore the data files from a local directory or a URL. Each file is checked against a SHA-256 checksum stored in `config.py` (computed with LF line endings, so a Windows checkout matches too). With `--base-url`, each file is downloaded to a `.part` file and only moved into place once its checksum matches. `--output-dir` changes the destination (default `data/raw`), and `--skip-verify` disables the checksum check for a different dataset:
 
@@ -221,7 +224,7 @@ The project has no REST API. Inference is available through the CLI, the Python 
 
 ### Docker
 
-The image (Python 3.14 slim, non-root user) contains only the app, the package, the model and its metrics, and runs the demo on port 8501 with a health check on `/_stcore/health`:
+The image (Python 3.14 slim, non-root user with UID 1000) contains only what the demo needs: `streamlit_app.py`, the package source (installed in editable mode, which is why `pyproject.toml` and `README.md` are copied too), `config/tuning.json`, the model and `reports/metrics.json`. Pinned dependencies are installed in their own layer so code changes do not reinstall them, and `.dockerignore` excludes the data, tests, docs and figures. The container runs Streamlit headless on port 8501 with usage statistics off and a health check on `/_stcore/health` every 30 seconds:
 
 ```bash
 docker build -t movie-genre .
