@@ -68,7 +68,7 @@ Each was compared on the validation split:
 
 ```
 MOVIE-GENRE-CLASSIFICATION/
-├── .github/workflows/tests.yml    # CI: ruff, then pytest on Python 3.12 and 3.14
+├── .github/workflows/tests.yml    # CI: parallel lint (ruff) and pytest (3.12, 3.14) jobs
 ├── config/tuning.json             # C chosen by movie-genre-tune, read by training
 ├── data/
 │   ├── README.md                  # file format and source
@@ -185,7 +185,11 @@ ruff check .
 pytest                            # 20 tests
 ```
 
-The suite has 20 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums, the `--file` CLI and argument parsing for `movie-genre-eda` and `movie-genre-train`, headless Streamlit tests, and a minimum-quality regression test. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing. CI runs `ruff check` and then `pytest` on Python 3.12 and 3.14.
+The suite has 20 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums, the `--file` CLI and argument parsing for `movie-genre-eda` and `movie-genre-train`, headless Streamlit tests, and a minimum-quality regression test. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing.
+
+CI (`.github/workflows/tests.yml`) runs on every push to `main` and every pull request as two independent jobs: `lint` installs only ruff and runs `ruff check` on Python 3.14, and `pytest` installs `requirements-dev.txt` and runs the suite on Python 3.12 and 3.14 (`fail-fast: false`, so one version failing does not cancel the other).
+
+Lint and test settings live in `pyproject.toml`: ruff uses a 140-character line length, targets Python 3.11 and enables the `E`, `F`, `W`, `I`, `B` and `UP` rule sets; pytest collects from `tests/` and filters one known joblib/NumPy deprecation warning raised while loading the model.
 
 ## License
 
