@@ -15,14 +15,17 @@ Given a short plot summary, predict which of 27 genres (drama, comedy, thriller,
 
 ## Approach
 
-1. **Data cleaning** (`data.py`): drop training rows whose description also appears in the test set (164), rows with conflicting labels for the same description (11), and exact duplicates (49).
-2. **Text cleaning** (`preprocessing.py`): lowercase, strip emails, tags, numbers, punctuation and single letters.
+1. **Data cleaning** (`data.py`): drop training rows whose description also appears in the test set (164), rows whose description carries more than one genre (11, every such row is dropped), and repeated descriptions, keeping the first (49). This leaves 53,990 rows.
+2. **Text cleaning** (`preprocessing.py`): lowercase, then strip emails, `@mentions` and `#hashtags`, HTML tags, digits, punctuation and single letters, and collapse whitespace. Non-string input becomes an empty string. The function is the vectorizer's `preprocessor`, so it is saved inside the model and applied identically at inference.
 3. **Features** (`model.py`):
    * Description: word unigrams and bigrams, English stopwords removed, `sublinear_tf=True`, `min_df=2`, `max_df=0.9`, capped at 100,000 features.
-   * Title: character 2-4 grams (up to 50,000), which pick up the release year and the quoting used for TV episodes.
+   * Title: character 2-4 grams within word boundaries (`analyzer="char_wb"`), `min_df=3`, `sublinear_tf=True`, capped at 50,000 features, which pick up the release year and the quoting used for TV episodes.
+   * The two blocks are combined with a `ColumnTransformer` inside one scikit-learn `Pipeline`.
 4. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC, with balanced class weights where supported. The SVC's `C=0.5` was chosen by 5-fold cross-validation (`movie-genre-tune`, which writes it to `config/tuning.json`).
-5. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
+5. **Selection**: a stratified 80/20 split of the training data (43,192 / 10,798 rows). The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
 6. **Export**: the selected model is refit on all 53,990 cleaned training rows and saved as a single pipeline that accepts raw text. This refit model is the one scored on the test set and reported below.
+
+The split, the cross-validation folds and both Logistic Regression and Linear SVC use `random_state=42` (`RANDOM_STATE` in `config.py`).
 
 ## Dataset
 
