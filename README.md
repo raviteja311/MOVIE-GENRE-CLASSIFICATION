@@ -15,14 +15,17 @@ Given a short plot summary, predict which of 27 genres (drama, comedy, thriller,
 
 ## Approach
 
-1. **Data cleaning** (`data.py`): drop training rows whose description also appears in the test set (164), rows with conflicting labels for the same description (11), and exact duplicates (49).
-2. **Text cleaning** (`preprocessing.py`): lowercase, strip emails, tags, numbers, punctuation and single letters.
+1. **Data cleaning** (`data.py`): drop training rows whose description also appears in the test set (164), rows whose description carries more than one genre (11, every such row is dropped), and repeated descriptions, keeping the first (49). This leaves 53,990 rows.
+2. **Text cleaning** (`preprocessing.py`): lowercase, then strip emails, `@mentions` and `#hashtags`, HTML tags, digits, punctuation and single letters, and collapse whitespace. Non-string input becomes an empty string. The function is the vectorizer's `preprocessor`, so it is saved inside the model and applied identically at inference.
 3. **Features** (`model.py`):
    * Description: word unigrams and bigrams, English stopwords removed, `sublinear_tf=True`, `min_df=2`, `max_df=0.9`, capped at 100,000 features.
-   * Title: character 2-4 grams (up to 50,000), which pick up the release year and the quoting used for TV episodes.
+   * Title: character 2-4 grams within word boundaries (`analyzer="char_wb"`), `min_df=3`, `sublinear_tf=True`, capped at 50,000 features, which pick up the release year and the quoting used for TV episodes.
+   * The two blocks are combined with a `ColumnTransformer` inside one scikit-learn `Pipeline`.
 4. **Models**: Logistic Regression, Complement Naive Bayes and Linear SVC, with balanced class weights where supported. The SVC's `C=0.5` was chosen by 5-fold cross-validation (`movie-genre-tune`, which writes it to `config/tuning.json`).
-5. **Selection**: a stratified 80/20 split of the training data. The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
+5. **Selection**: a stratified 80/20 split of the training data (43,192 / 10,798 rows). The model with the best **validation** weighted F1 is selected; the labelled test set is only used to report the final score.
 6. **Export**: the selected model is refit on all 53,990 cleaned training rows and saved as a single pipeline that accepts raw text. This refit model is the one scored on the test set and reported below.
+
+The split, the cross-validation folds and both Logistic Regression and Linear SVC use `random_state=42` (`RANDOM_STATE` in `config.py`).
 
 ## Dataset
 
@@ -68,7 +71,7 @@ Each was compared on the validation split:
 
 ```
 MOVIE-GENRE-CLASSIFICATION/
-├── .github/workflows/tests.yml    # CI: ruff, then pytest on Python 3.12 and 3.14
+├── .github/workflows/tests.yml    # CI: parallel lint (ruff) and pytest (3.12, 3.14) jobs
 ├── config/tuning.json             # C chosen by movie-genre-tune, read by training
 ├── data/
 │   ├── README.md                  # file format and source
@@ -80,26 +83,29 @@ MOVIE-GENRE-CLASSIFICATION/
 │   ├── metrics.json               # shipped-model and selection metrics, per-class report
 │   └── figures/                   # EDA plots and confusion matrix
 ├── src/movie_genre/
+│   ├── __init__.py                # package version (0.1.0)
 │   ├── config.py                  # paths, constants, data checksums, tuned C loader
 │   ├── data.py                    # loading, cleaning and splitting
 │   ├── preprocessing.py           # text cleaning shared by training and inference
-│   ├── model.py                   # pipeline definition and top-k prediction
+│   ├── model.py                   # pipeline definition, top-k prediction, artifact loading
 │   ├── eda.py                     # exploratory analysis
 │   ├── tune.py                    # cross-validation for C
 │   ├── train.py                   # training, selection, evaluation and export
 │   ├── predict.py                 # command-line inference, single plot or --file batch
 │   └── download_data.py           # restore and SHA-256 verify the data files
-├── tests/                         # pytest suite, including headless app tests
+├── tests/                         # pytest suite; conftest.py builds a tiny model for fast unit tests
 ├── streamlit_app.py               # web demo
 ├── Dockerfile                     # container for the web demo
+├── .dockerignore                  # keeps data, tests, docs and figures out of the image
 ├── pyproject.toml                 # package, pytest and ruff settings
 ├── requirements.txt               # pinned runtime dependencies
-└── requirements-dev.txt           # adds pytest and ruff
+├── requirements-dev.txt           # adds pytest and ruff
+└── LICENSE                        # MIT
 ```
 
 ## Usage
 
-Create an environment (Python 3.11+) and install the package with pinned dependencies:
+Create an environment and install the package with pinned dependencies. `pyproject.toml` requires Python 3.11 or newer; CI tests 3.12 and 3.14.
 
 ```bash
 python -m venv .venv
@@ -107,19 +113,24 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Explore the data (prints summaries, saves plots to `reports/figures/`):
+`requirements.txt` ends with `-e .`, which installs the package in editable mode. Keep it that way: `config.py` finds `data/`, `models/`, `reports/` and `config/` relative to the source tree (`Path(__file__).parents[2]`), so a regular `pip install .` would look for them inside `site-packages` and fail to find the model and data.
+
+The trained model and its metrics are committed, so `movie-genre-predict` and the web demo work straight after installation.
+
+Explore the data. This prints shapes, column summaries, missing values, duplicate counts and the number of descriptions shared between train and test, and saves `genre_distribution.png`, `description_length.png`, `description_length_by_genre.png` and `wordcloud.png` to `reports/figures/`:
 
 ```bash
 movie-genre-eda
 ```
 
-Tune `C` with cross-validation (about 6 minutes). The best value is written to `config/tuning.json`, which `movie-genre-train` reads; without that file `C` defaults to 0.5. Pass `--no-save` to only print the result:
+Tune `C` with cross-validation (about 6 minutes). The best value is written to `config/tuning.json`, which `movie-genre-train` reads; without that file `C` defaults to 0.5. Pass `--no-save` to only print the result. `--folds` (default 5), `--grid` (default `0.25 0.5 1.0 2.0 4.0`) and `--output` (default `config/tuning.json`) change the search:
 
 ```bash
 movie-genre-tune
+movie-genre-tune --folds 3 --grid 0.5 1 --no-save
 ```
 
-Train, select, refit, evaluate and export the model (about 6 minutes):
+Train, select, refit, evaluate and export the model (about 6 minutes). This overwrites `models/movie_genre_classifier.joblib`, `reports/metrics.json` and `reports/figures/confusion_matrix.png`, and prints the rows removed during cleaning, a per-class report and a metrics table:
 
 ```bash
 movie-genre-train
@@ -131,10 +142,34 @@ Predict from the command line. The title is optional but improves accuracy:
 movie-genre-predict "A small-town detective investigates a string of unsettling disappearances." --title "Hollow Creek (2015)" --top-k 3
 ```
 
+```text
+Top-1 prediction: thriller
+Top-k predictions:
+1. thriller
+2. horror
+3. fantasy
+```
+
+`--top-k` defaults to 3 and is clamped between 1 and the number of genres. `--artifact` loads a model other than `models/movie_genre_classifier.joblib`.
+
 Each call loads the model, which takes a few seconds, so classify many plots in one run with `--file`. It accepts a text file with one description per line, or a CSV with a `description` column and an optional `title` column, and prints CSV (`row,title,genre_1,...`) to stdout:
 
 ```bash
 movie-genre-predict --file plots.csv --top-k 3 > predictions.csv
+```
+
+How the file is read:
+
+* A file ending in `.csv` is parsed as CSV; any other extension is read as plain text, one description per line.
+* CSV headers are matched case-insensitively after trimming spaces, so `Description` and `Title` work. A CSV without a `description` column is rejected.
+* Blank lines and rows with an empty description are skipped. The `row` column numbers the descriptions that were classified, so it can differ from line numbers in the input file.
+
+For a `plots.csv` with the header `Title,Description` and three rows, where the second row has no description:
+
+```text
+row,title,genre_1,genre_2,genre_3
+1,Deep Signal (2019),sci-fi,adventure,short
+2,,documentary,comedy,short
 ```
 
 Launch the web demo (opens at http://localhost:8501):
@@ -143,22 +178,53 @@ Launch the web demo (opens at http://localhost:8501):
 streamlit run streamlit_app.py
 ```
 
-The demo takes a plot description (up to 5,000 characters) and optional title (up to 250), shows the top 1, 3 or 5 genres with their scores, and includes one-click examples.
+The demo takes a plot description (up to 5,000 characters) and optional title (up to 250), shows the top 1, 3 or 5 genres with their scores, and includes five one-click examples (Space mystery, Game show, Detective thriller, Nature documentary, Romantic comedy). Above the form it shows the shipped model's test accuracy, weighted F1 and top-3 accuracy, read from `reports/metrics.json`; the cards are hidden if that file is missing, and the app shows an error and stops if the model is missing. Scores are drawn as dots rather than bars because the SVM's decision values are often all negative, and a caption states that they are not probabilities. Inputs sit in a form, so prediction runs only when **Predict genre** is pressed, and the model is loaded once and cached.
 
-Restore the data files from another location. Each file is checked against a SHA-256 checksum stored in `config.py` (computed with LF line endings, so a Windows checkout matches too):
+Restore the data files from a local directory or a URL. Each file is checked against a SHA-256 checksum stored in `config.py` (computed with LF line endings, so a Windows checkout matches too). With `--base-url`, each file is downloaded to a `.part` file and only moved into place once its checksum matches. `--output-dir` changes the destination (default `data/raw`), and `--skip-verify` disables the checksum check for a different dataset:
 
 ```bash
 movie-genre-download --source-dir <path-to-data>
+movie-genre-download --base-url <url-of-folder-with-the-three-files>
 movie-genre-download --verify-only
 ```
 
+Command reference (every command also accepts `--help`):
+
+| Command | Options (defaults) |
+| --- | --- |
+| `movie-genre-eda` | none |
+| `movie-genre-tune` | `--folds` (5), `--grid` (0.25 0.5 1.0 2.0 4.0), `--output` (`config/tuning.json`), `--no-save` |
+| `movie-genre-train` | none |
+| `movie-genre-predict` | `TEXT` or `--file`, `--title` (empty), `--top-k` (3), `--artifact` (`models/movie_genre_classifier.joblib`) |
+| `movie-genre-download` | `--source-dir`, `--base-url`, `--output-dir` (`data/raw`), `--verify-only`, `--skip-verify` |
+
 Each command is also available as a module, for example `python -m movie_genre.train`.
+
+### Use from Python
+
+The saved artifact is a joblib dictionary with three keys: `model` (the full scikit-learn pipeline, which accepts raw text), `label_encoder` (maps class indices to the 27 genre names) and `best_model_name` (`"Linear SVC"`). The helpers in `movie_genre.model` wrap it:
+
+```python
+from movie_genre.config import MODEL_PATH
+from movie_genre.model import load_artifact, predict_top_k, to_frame
+
+model, label_encoder = load_artifact(MODEL_PATH)
+frame = to_frame(
+    ["A weary detective hunts a serial killer who leaves riddles at every crime scene in a rain-soaked city."],
+    ["Riddle Man (1997)"],  # optional; omit the titles argument to use empty titles
+)
+print(predict_top_k(model, label_encoder, frame, k=3)[0].tolist())  # ['crime', 'thriller', 'action']
+```
+
+`genre_scores(model, frame)` returns the raw score matrix (one column per genre, in `label_encoder.classes_` order). For the shipped Linear SVC these are decision values, not probabilities.
+
+The project has no REST API. Inference is available through the CLI, the Python helpers above and the Streamlit demo; the only HTTP route is Streamlit's built-in `/_stcore/health`, used by the Docker health check.
 
 ## Deployment
 
 ### Docker
 
-The image (Python 3.14 slim, non-root user) contains only the app, the package, the model and its metrics, and runs the demo on port 8501 with a health check on `/_stcore/health`:
+The image (Python 3.14 slim, non-root user with UID 1000) contains only what the demo needs: `streamlit_app.py`, the package source (installed in editable mode, which is why `pyproject.toml` and `README.md` are copied too), `config/tuning.json`, the model and `reports/metrics.json`. Pinned dependencies are installed in their own layer so code changes do not reinstall them, and `.dockerignore` excludes the data, tests, docs and figures. The container runs Streamlit headless on port 8501 with usage statistics off and a health check on `/_stcore/health` every 30 seconds:
 
 ```bash
 docker build -t movie-genre .
@@ -182,10 +248,14 @@ The repository is laid out for Community Cloud: `streamlit_app.py` at the root, 
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-pytest                            # 18 tests
+pytest                            # 25 tests
 ```
 
-The suite has 18 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums and the `--file` CLI, headless Streamlit tests, and a minimum-quality regression test. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing. CI runs `ruff check` and then `pytest` on Python 3.12 and 3.14.
+The suite has 25 tests: unit tests for cleaning, data loading, the pipeline, tuning output, checksums, the `--file` CLI and argument parsing for `movie-genre-eda` and `movie-genre-train`, headless Streamlit tests, a minimum-quality regression test, and README consistency checks. The README checks (`tests/test_readme.py`) fail if any command-line option is missing from this file, if the metrics quoted here differ from `reports/metrics.json`, if the tuned `C` differs from `config/tuning.json`, if the stated test count is wrong, or if a relative link points to a missing file. The regression test fails if the shipped model's recorded test accuracy or weighted F1 in `reports/metrics.json` drops below 58%, or if the saved model scores below 56% on a fixed 2,000-row test sample. Tests that need the model or data skip when those files are missing.
+
+CI (`.github/workflows/tests.yml`) runs on every push to `main` and every pull request as two independent jobs: `lint` installs only ruff and runs `ruff check` on Python 3.14, and `pytest` installs `requirements-dev.txt` and runs the suite on Python 3.12 and 3.14 (`fail-fast: false`, so one version failing does not cancel the other).
+
+Lint and test settings live in `pyproject.toml`: ruff uses a 140-character line length, targets Python 3.11 and enables the `E`, `F`, `W`, `I`, `B` and `UP` rule sets; pytest collects from `tests/` and filters one known joblib/NumPy deprecation warning raised while loading the model.
 
 ## License
 
